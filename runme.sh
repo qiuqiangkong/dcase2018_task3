@@ -1,4 +1,7 @@
+# Dataset directory
 DATASET_DIR="/vol/vssp/datasets/audio/dcase2018/task3"
+
+# You need to modify this path
 WORKSPACE="/vol/vssp/msos/qk/workspaces/dcase2018_task3"
 
 # Create validation csv

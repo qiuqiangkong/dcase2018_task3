@@ -132,7 +132,7 @@ def train(args):
     for (batch_x, batch_y) in gen.generate_train():
 
         # Evaluate
-        if iteration % 100 == 0:
+        if iteration % 500 == 0:
 
             train_fin_time = time.time()
 
