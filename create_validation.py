@@ -5,6 +5,8 @@ import argparse
 
 
 def create_validation(args):
+    """Create a validation.csv from three .csv files. 
+    """
     
     dataset_dir = args.dataset_dir
     workspace = args.workspace

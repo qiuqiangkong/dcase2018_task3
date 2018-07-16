@@ -81,7 +81,7 @@ def inverse_scale(x, mean, std):
     
     
 def pad_or_trunc(x, max_len):
-    print(x.shape)
+    
     if len(x) == max_len:
         return x
     
