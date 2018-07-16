@@ -14,8 +14,8 @@ from torch.autograd import Variable
 from data_generator import DataGenerator
 from utilities import (create_folder, get_filename, create_logging, 
                        calculate_auc, calculate_ap, calculate_error, 
-                       calculate_scalar, scale, move_data_to_gpu)
-from models import init_layer, init_bn, BaselineCnn
+                       calculate_scalar, scale)
+from models import move_data_to_gpu, init_layer, init_bn, BaselineCnn
 import config
 
 
@@ -205,7 +205,7 @@ def inference_bottleneck(args):
     cuda = True
 
     # Paths
-    hdf5_path = os.path.join(workspace, 'features', 'logmel', 'mini_dev.h5')
+    hdf5_path = os.path.join(workspace, 'features', 'logmel', 'dev.h5')
     
     model_path = os.path.join(workspace, 'models', filename,
         'md_{}_iters.tar'.format(iteration))

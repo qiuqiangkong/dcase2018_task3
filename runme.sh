@@ -11,7 +11,7 @@ python create_validation.py --dataset_dir=$DATASET_DIR --workspace=$WORKSPACE
 python features.py logmel --dataset_dir=$DATASET_DIR --workspace=$WORKSPACE
 
 # Train
-CUDA_VISIBLE_DEVICES=2 python tmp01.py train --workspace=$WORKSPACE
+CUDA_VISIBLE_DEVICES=2 python main_pytorch.py train --workspace=$WORKSPACE
 
 # Inference bottleneck feature
-CUDA_VISIBLE_DEVICES=2 python tmp01.py inference_bottleneck --workspace=$WORKSPACE --iteration=1000
+CUDA_VISIBLE_DEVICES=2 python main_pytorch.py inference_bottleneck --workspace=$WORKSPACE --iteration=1000

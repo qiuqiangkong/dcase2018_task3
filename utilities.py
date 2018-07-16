@@ -106,11 +106,3 @@ def calculate_error(target, predict):
     binary_predict = (np.sign(predict - 0.5) + 1.) / 2
     error = np.sum(binary_predict != target) / len(target)
     return error
-    
-    
-def move_data_to_gpu(x, cuda, volatile=False):
-    x = torch.Tensor(x)
-    if cuda:
-        x = x.cuda()
-    x = Variable(x, volatile=volatile)
-    return x

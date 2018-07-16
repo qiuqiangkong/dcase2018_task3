@@ -65,7 +65,7 @@ def logmel(args):
     
     validation_csv_path = os.path.join(workspace, 'validation.csv')
     
-    hdf5_path = os.path.join(workspace, 'features', 'logmel', 'dev.h5')
+    hdf5_path = os.path.join(workspace, 'features', 'logmel', 'development.h5')
     create_folder(os.path.dirname(hdf5_path))
     
     # Load data
