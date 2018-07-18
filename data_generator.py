@@ -9,7 +9,7 @@ from utilities import calculate_scalar, scale
 
 class DataGenerator(object):
     
-    def __init__(self, hdf5_path, batch_size, validation_csv, fold_for_validation, seed=1234):
+    def __init__(self, hdf5_path, batch_size, validation_csv=None, fold_for_validation=None, seed=1234):
         
         self.random_state = np.random.RandomState(seed)
         self.batch_size = batch_size
@@ -119,7 +119,7 @@ class DataGenerator(object):
             
             yield batch_x, batch_y
         
-    def generate_validate(self, data_type, max_iteration):
+    def generate_validate(self, data_type, max_iteration=None):
     
         batch_size = self.batch_size
         
@@ -172,3 +172,51 @@ class DataGenerator(object):
         """
 
         return scale(x, self.mean, self.std)
+        
+        
+class TestDataGenerator(DataGenerator):
+    
+    def __init__(self, dev_hdf5_path, test_hdf5_path, batch_size):
+        
+        super(TestDataGenerator, self).__init__(
+            hdf5_path=dev_hdf5_path, 
+            batch_size=batch_size)
+            
+        # Load test data
+        load_time = time.time()
+        hf = h5py.File(test_hdf5_path, 'r')
+
+        self.test_itemids = np.array([s.decode() for s in hf['itemid'][:]])
+        self.test_x = hf['feature'][:]
+        
+        hf.close()
+        
+        logging.info("Loading data time: {:.3f} s".format(
+            time.time() - load_time))
+        
+    def generate_test(self):
+        
+        audios_num = len(self.test_x)
+        audio_indexes = np.arange(audios_num)
+        batch_size = self.batch_size
+        
+        pointer = 0
+        
+        while True:
+
+            # Reset pointer
+            if pointer >= audios_num:
+                break
+
+            # Get batch indexes
+            batch_audio_indexes = audio_indexes[pointer: pointer + batch_size]
+                
+            pointer += batch_size
+
+            batch_x = self.test_x[batch_audio_indexes]
+            batch_itemids = self.test_itemids[batch_audio_indexes]
+
+            # Transform data
+            batch_x = self.transform(batch_x)
+
+            yield batch_x, batch_itemids

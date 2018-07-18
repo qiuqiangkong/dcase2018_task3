@@ -4,6 +4,7 @@ import argparse
 import h5py
 import math
 import time
+import csv
 
 import torch
 import torch.nn as nn
@@ -11,38 +12,36 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.autograd import Variable
 
-from data_generator import DataGenerator
+from data_generator import DataGenerator, TestDataGenerator
 from utilities import (create_folder, get_filename, create_logging, 
-                       calculate_auc, calculate_ap, calculate_error, 
+                       calculate_auc, calculate_ap, calculate_accuracy, 
                        calculate_scalar, scale)
 from models import move_data_to_gpu, init_layer, init_bn, BaselineCnn
 import config
 
 
-def evaluate(model, gen, data_type, max_iteration, cuda):
+def evaluate(model, generator, data_type, max_iteration, cuda):
+
+    generate_func = generator.generate_validate(data_type=data_type, max_iteration=max_iteration)
 
     (outputs, targets, itemids) = forward(model=model,
-                               gen=gen,
-                               data_type=data_type,
-                               max_iteration=-1,
-                               cuda=cuda, 
-                               has_target=True)
+                                          generate_func=generate_func,
+                                          cuda=cuda,
+                                          has_target=True)
 
-    error = calculate_error(targets, outputs)
+    accuracy = calculate_accuracy(targets, outputs)
     auc = calculate_auc(targets, outputs)
     ap = calculate_ap(targets, outputs)
 
-    return error, auc, ap
+    return accuracy, auc, ap
 
 
-def forward(model, gen, data_type, max_iteration, cuda, has_target):
+def forward(model, generate_func, cuda, has_target):
     """Forward data to a model. 
     
     model: object. 
-    gen: object. 
+    generator_func: function. 
     return_bottleneck: bool. 
-    data_type: 'train' | 'validate'. 
-    max_iteration: int. 
     cuda: bool. 
     """
 
@@ -55,7 +54,7 @@ def forward(model, gen, data_type, max_iteration, cuda, has_target):
     iteration = 0
 
     # Evaluate on mini-batch
-    for data in gen.generate_validate(data_type=data_type, max_iteration=max_iteration):
+    for data in generate_func:
         
         if has_target:
             (batch_x, batch_y, batch_itemids) = data
@@ -96,7 +95,7 @@ def train(args):
     filename = args.filename
     
     batch_size = 64
-    fold_for_validation = 0
+    fold_for_validation = config.fold_for_validation
 
     # Paths
     if mini_data:
@@ -125,10 +124,10 @@ def train(args):
     if cuda:
         model.cuda()
 
-    gen = DataGenerator(hdf5_path=hdf5_path,
-                        batch_size=batch_size,
-                        validation_csv=validation_csv, 
-                        fold_for_validation=fold_for_validation)
+    generator = DataGenerator(hdf5_path=hdf5_path,
+                              batch_size=batch_size,
+                              validation_csv=validation_csv, 
+                              fold_for_validation=fold_for_validation)
 
     # Optimizer
     optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999),
@@ -138,21 +137,21 @@ def train(args):
     train_bgn_time = time.time()
 
     # Train on mini-batch
-    for (batch_x, batch_y) in gen.generate_train():
+    for (batch_x, batch_y) in generator.generate_train():
 
         # Evaluate
         if iteration % 500 == 0:
 
             train_fin_time = time.time()
 
-            (tr_error, tr_auc, tr_ap) = evaluate(model=model,
-                                                 gen=gen,
+            (tr_acc, tr_auc, tr_ap) = evaluate(model=model,
+                                                 generator=generator,
                                                  data_type='train',
                                                  max_iteration=-1,
                                                  cuda=cuda)
 
-            (va_error, va_auc, va_ap) = evaluate(model=model,
-                                                 gen=gen,
+            (va_acc, va_auc, va_ap) = evaluate(model=model,
+                                                 generator=generator,
                                                  data_type='validate',
                                                  max_iteration=-1,
                                                  cuda=cuda)
@@ -165,12 +164,12 @@ def train(args):
                     iteration, train_time, validate_time))
                     
             logging.info(
-                "tr_error: {:.3f}, tr_auc: {:.3f}, tr_ap: {:.3f}".format(
-                    tr_error, tr_auc, tr_ap))
+                "tr_acc: {:.3f}, tr_auc: {:.3f}, tr_ap: {:.3f}".format(
+                    tr_acc, tr_auc, tr_ap))
                     
             logging.info(
-                "va_error: {:.3f}, va_auc: {:.3f}, va_ap: {:.3f}".format(
-                    va_error, va_auc, va_ap))
+                "va_acc: {:.3f}, va_auc: {:.3f}, va_ap: {:.3f}".format(
+                    va_acc, va_auc, va_ap))
                     
             logging.info("")
 
@@ -205,80 +204,118 @@ def train(args):
             logging.info("Model saved to {}".format(save_out_path))
 
 
-def inference_bottleneck(args):
+def inference_validation(args):
 
     # Arugments & parameters
     workspace = args.workspace
-    filename = args.filename
     iteration = args.iteration
-    cuda = True
+    filename = args.filename
+    cuda = args.cuda
+
+    validate = True
+    batch_size = 64
+    fold_for_validation = config.fold_for_validation
 
     # Paths
-    hdf5_path = os.path.join(workspace, 'features', 'logmel', 'dev.h5')
-    
-    model_path = os.path.join(workspace, 'models', filename,
-        'md_{}_iters.tar'.format(iteration))
-    
-    bottleneck_hdf5_path = os.path.join(
-        workspace, 'bottlecks', filename, 'bottleneck.h5')
-        
-    create_folder(os.path.dirname(bottleneck_hdf5_path))
+    hdf5_path = os.path.join(workspace, 'features', 'logmel', 'development.h5')
 
-    # Load data
-    with h5py.File(hdf5_path, 'r') as hf:
-        x = hf['feature'][:]
-        y = hf['hasbird'][:]
-        itemids = hf['itemid'][:]
-        datasetids = hf['datasetid'][:]
-        folds = hf['fold'][:]
+    validation_csv = os.path.join(workspace, 'validation.csv')
 
-    (mean, std) = calculate_scalar(x)
 
-    samples_num = len(x)
+    model_path = os.path.join(workspace, 'models', filename, 
+                              'validation={}'.format(validate), 
+                              'md_{}_iters.tar'.format(iteration))
 
     # Load model
     model = BaselineCnn()
-
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint['state_dict'])
 
     if cuda:
         model.cuda()
 
-    output_all = []
-    bottleneck_all = []
+    # Data generator
+    generator = DataGenerator(hdf5_path=hdf5_path,
+                              batch_size=batch_size,
+                              validation_csv=validation_csv, 
+                              fold_for_validation=fold_for_validation)
 
-    # Inference on mini-batch
-    for n in range(samples_num):
+    generate_func = generator.generate_validate(data_type='validate')
+
+    # Inference
+    (outputs, targets, audio_names) = forward(model=model,
+                                              generate_func=generate_func, 
+                                              cuda=cuda, 
+                                              has_target=True)
+
+    # Evaluate
+    va_acc = calculate_accuracy(targets, outputs)
+    va_auc = calculate_auc(targets, outputs)
+    va_ap = calculate_ap(targets, outputs)
+    
+    logging.info(
+        "va_acc: {:.3f}, va_auc: {:.3f}, va_ap: {:.3f}".format(
+            va_acc, va_auc, va_ap))
+            
+            
+def inference_testing_data(args):
+    
+    # Arugments & parameters
+    workspace = args.workspace
+    iteration = args.iteration
+    filename = args.filename
+    cuda = args.cuda
+
+    validate = True
+    batch_size = 64
+
+    # Paths
+    dev_hdf5_path = os.path.join(workspace, 'features', 'logmel', 
+                                 'development.h5')
+                                 
+    test_hdf5_path = os.path.join(workspace, 'features', 'logmel', 
+                                  'test.h5')
+                                 
+    model_path = os.path.join(workspace, 'models', filename, 
+                              'validation={}'.format(validate), 
+                              'md_{}_iters.tar'.format(iteration))
+                              
+    submission_path = os.path.join(workspace, 'submissions', filename, 
+                                   'iteration={}'.format(iteration), 
+                                   'submission.csv')
+                                   
+    create_folder(os.path.dirname(submission_path))
+    
+    # Load model
+    model = BaselineCnn()
+    checkpoint = torch.load(model_path)
+    model.load_state_dict(checkpoint['state_dict'])
+
+    if cuda:
+        model.cuda()
+
+    # Data generator
+    generator = TestDataGenerator(dev_hdf5_path=dev_hdf5_path,
+                                    test_hdf5_path=test_hdf5_path, 
+                                    batch_size=batch_size)
+
+    generate_func = generator.generate_test()
+    
+    # Inference
+    (outputs, itemids) = forward(model=model, 
+                                 generate_func=generate_func, 
+                                 cuda=cuda, 
+                                 has_target=False)
+                                 
+    # Write out submission file
+    f = open(submission_path, 'w')
+    
+    for n in range(len(itemids)):
+        f.write('{},{}\n'.format(itemids[n], outputs[n][0]))
         
-        # Transform data
-        slice_x = scale(x[n], mean, std)[np.newaxis, :, :]
-
-        # Move data to gpu
-        slice_x = move_data_to_gpu(slice_x, cuda, volatile=False)
-
-        # Inference
-        model.eval()
-        (output, bottleneck) = model(slice_x, return_bottleneck=True)
-
-        output = output.data.cpu().numpy()
-        bottleneck = bottleneck.data.cpu().numpy()
-
-        output_all.append(output)
-        bottleneck_all.append(bottleneck)
-
-    output_all = np.concatenate(output_all, axis=0)
-    bottleneck_all = np.concatenate(bottleneck_all, axis=0)
-
-    # Write bottleneck to hdf5 file
-    with h5py.File(bottleneck_hdf5_path, 'w') as hf:
-        hf['bottleneck'] = bottleneck_all
-        hf['hasbird'] = y
-        hf['itemid'] = itemids
-        hf['datasetid'] = datasetids
-        hf['fold'] = folds
-        
-    print("Bottleneck saved to {}".format(bottleneck_hdf5_path))
+    f.close()
+    
+    print('Write out submission file to {}'.format(submission_path))
 
 
 if __name__ == '__main__':
@@ -292,10 +329,16 @@ if __name__ == '__main__':
     parser_train.add_argument('--validate', action='store_true', default=False)
     parser_train.add_argument('--mini_data', action='store_true', default=False)
     parser_train.add_argument('--cuda', action='store_true', default=False)
-
-    parser_inference_bottleneck = subparsers.add_parser('inference_bottleneck')
-    parser_inference_bottleneck.add_argument('--workspace', type=str)
-    parser_inference_bottleneck.add_argument('--iteration', type=int)
+    
+    parser_inference_validation = subparsers.add_parser('inference_validation')
+    parser_inference_validation.add_argument('--workspace', type=str, required=True)
+    parser_inference_validation.add_argument('--iteration', type=int, required=True)
+    parser_inference_validation.add_argument('--cuda', action='store_true', default=False)
+    
+    parser_inference_testing_data = subparsers.add_parser('inference_testing_data')
+    parser_inference_testing_data.add_argument('--workspace', type=str, required=True)
+    parser_inference_testing_data.add_argument('--iteration', type=int, required=True)
+    parser_inference_testing_data.add_argument('--cuda', action='store_true', default=False)
 
     args = parser.parse_args()
 
@@ -309,5 +352,11 @@ if __name__ == '__main__':
     if args.mode == 'train':
         train(args)
 
-    elif args.mode == 'inference_bottleneck':
-        inference_bottleneck(args)
+    elif args.mode == 'inference_validation':
+        inference_validation(args)
+        
+    elif args.mode == 'inference_testing_data':
+        inference_testing_data(args)
+
+    else:
+        raise Exception('In correct argument!')

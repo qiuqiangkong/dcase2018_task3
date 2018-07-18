@@ -102,7 +102,7 @@ def calculate_ap(target, predict):
     return metrics.average_precision_score(target, predict, average='macro')
     
     
-def calculate_error(target, predict):
+def calculate_accuracy(target, predict):
     binary_predict = (np.sign(predict - 0.5) + 1.) / 2
-    error = np.sum(binary_predict != target) / len(target)
-    return error
+    accuracy = np.sum(binary_predict == target) / len(target)
+    return accuracy

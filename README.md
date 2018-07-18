@@ -32,11 +32,15 @@ The log mel spectrogram of the scenes are shown below:
 ![alt text](appendixes/logmel.png)
 
 ## Run the code
+
+**0. Prepare data**
+Unzip all development wavs to 'wav' folder, unzip all testing wavs to 'test_wav' folder.
+
 **1. (Optional) Install dependent packages.** If you are using conda, simply run:
 
 $ conda env create -f environment.yml
 
-$ conda activate py3_dcase2018_task1
+$ conda activate py3_dcase2018_task3
 
 **2. Then simply run:**
 
@@ -55,59 +59,38 @@ Or run the commands in runme.sh line by line, including:
 The training looks like:
 
 <pre>
-root        : INFO     Loading data time: 7.601605415344238
-root        : INFO     Split development data to 6122 training and 2518 validation data. 
-root        : INFO     Number of train audios in specific devices ['a']: 6122
-root        : INFO     tr_acc: 0.100
-root        : INFO     Number of validate audios in specific devices ['a']: 2518
-root        : INFO     va_acc: 0.100
-root        : INFO     iteration: 0, train time: 0.006 s, validate time: 2.107 s
-root        : INFO     ------------------------------------
+root        : INFO     Load hdf5 time: 11.122668504714966 s
+root        : INFO     Training audios: 23789
+root        : INFO     Validation audios: 11901
+root        : INFO     iteration: 0, train time: 0.005 s, validate time: 4.852 s
+root        : INFO     tr_acc: 0.494, tr_auc: 0.439, tr_ap: 0.459
+root        : INFO     va_acc: 0.489, va_auc: 0.452, va_ap: 0.472
+root        : INFO
+root        : INFO     iteration: 500, train time: 13.480 s, validate time: 5.025 s
+root        : INFO     tr_acc: 0.769, tr_auc: 0.857, tr_ap: 0.872
+root        : INFO     va_acc: 0.757, va_auc: 0.844, va_ap: 0.860
 ......
-root        : INFO     Number of train audios in specific devices ['a']: 6122
-root        : INFO     tr_acc: 1.000
-root        : INFO     Number of validate audios in specific devices ['a']: 2518
-root        : INFO     va_acc: 0.688
-root        : INFO     iteration: 3000, train time: 6.966 s, validate time: 2.340 s
-root        : INFO     ------------------------------------
-root        : INFO     Number of train audios in specific devices ['a']: 6122
-root        : INFO     tr_acc: 1.000
-root        : INFO     Number of validate audios in specific devices ['a']: 2518
-root        : INFO     va_acc: 0.688
-root        : INFO     iteration: 3100, train time: 6.266 s, validate time: 2.345 s
+root        : INFO     iteration: 3000, train time: 15.313 s, validate time: 5.195 s
+root        : INFO     tr_acc: 0.980, tr_auc: 0.999, tr_ap: 0.999
+root        : INFO     va_acc: 0.855, va_auc: 0.922, va_ap: 0.936
+......
 </pre>
 
 ## Result
 
 We apply a convolutional neural network on the log mel spectrogram feature to solve this task. Training takes around 100 ms / iteration on a GTX Titan X GPU. The model is trained for 3000 iterations. The result is shown below. 
 
-### Subtask A
+In development, we split the data to 3 fold. we train the model on 2 folds and validate on another fold. We evaluate the validation error, 
+ 
+  
 
-Averaged accuracy over 10 classes:
+| validation error | validation AUC | validation AP |
+|------------------|:--------------:|---------------|
+| 0.851            |      0.921     | 0.934         |
 
-|                   | Device A |
-|:-----------------:|:--------:|
-| averaged accuracy |   68.2%  |
-
-Confusion matrix:
-
-<img src="https://github.com/qiuqiangkong/dcase2018_task1/blob/dev/appendixes/subtask_a_confusion_matrix.png" width="600">
-
-### Subtask B
-
-Averaged accuracy over 10 classes of device A, B and C:
-
-|                   | Device A | Device B | Device C |
-|:-----------------:|:--------:|----------|----------|
-| averaged accuracy |   67.4%  | 59.4%    | 57.2%    |
-
-Confusion matrix:
-
-<img src="https://github.com/qiuqiangkong/dcase2018_task1/blob/dev/appendixes/subtask_b_confusion_matrix_device_a.png" width="400"><img src="https://github.com/qiuqiangkong/dcase2018_task1/blob/dev/appendixes/subtask_b_confusion_matrix_device_b.png" width="400">
-<img src="https://github.com/qiuqiangkong/dcase2018_task1/blob/dev/appendixes/subtask_b_confusion_matrix_device_c.png" width="400">
 
 ## Summary
-This codebase provides a convolutional neural network (CNN) for DCASE 2018 challenge Task 1. 
+This codebase provides a convolutional neural network (CNN) for DCASE 2018 challenge Task 3. 
 
 ### External link
 
