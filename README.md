@@ -31,6 +31,22 @@ The log mel spectrogram of the scenes are shown below:
 
 ![alt text](appendixes/logmel.png)
 
+The names of the audios are:
+<pre>
+No. 0, 00053d90-e4b9-4045-a2f1-f39efc90cfa9.wav
+No. 1, 000db435-a40f-4ad9-a74e-d1af284d2c44.wav
+No. 2, 001059c0-e04f-42fc-a8e2-11aad24dc6fb.wav
+No. 3, 00106202-f61e-467d-a80f-070d90421952.wav
+No. 4, 00129593-77ca-40b2-a512-75d178071250.wav
+No. 5, 00143c1f-bcac-47f6-a83d-81b2975ccca3.wav
+No. 6, 00160fdf-5231-461b-acd7-1db41abf3ee5.wav
+No. 7, 00162d26-57e6-4924-a247-5f58963f1403.wav
+No. 8, 001ac3fe-c23a-4366-a16d-8d59f021b17e.wav
+No. 9, 001ac895-0e9c-41d8-a76c-65c73c4a8d11.wav
+No. 10, 001b8d8a-4247-4c46-a11b-b868fa3edb0a.wav
+No. 11, 001d5212-6378-4a5d-aa3c-b1115d02ee79.wav
+</pre>
+
 ## Run the code
 
 **0. Prepare data**
