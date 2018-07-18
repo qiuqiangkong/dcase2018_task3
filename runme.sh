@@ -15,11 +15,11 @@ python features.py logmel --dataset_dir=$DATASET_DIR --workspace=$WORKSPACE --da
 CUDA_VISIBLE_DEVICES=1 python main_pytorch.py train --workspace=$WORKSPACE --data_type=development --validate --cuda
 
 # Inference validation
-CUDA_VISIBLE_DEVICES=1 python main_pytorch.py train --workspace=$WORKSPACE --data_type=development --validate --cuda
+CUDA_VISIBLE_DEVICES=1 python main_pytorch.py inference_validation --workspace=$WORKSPACE --iteration=3000 --cuda
 
 ############ Full train ############
 # Train using all development data
 CUDA_VISIBLE_DEVICES=1 python main_pytorch.py train --workspace=$WORKSPACE --data_type=development --cuda
 
 # Predict on test data
-CUDA_VISIBLE_DEVICES=1 python main_pytorch.py train --workspace=$WORKSPACE --data_type=development --cuda
+CUDA_VISIBLE_DEVICES=1 python main_pytorch.py inference_testing_data --workspace=$WORKSPACE --iteration=3000 --cuda

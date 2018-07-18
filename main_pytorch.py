@@ -149,16 +149,18 @@ def train(args):
                                                  data_type='train',
                                                  max_iteration=-1,
                                                  cuda=cuda)
-
-            (va_acc, va_auc, va_ap) = evaluate(model=model,
-                                                 generator=generator,
-                                                 data_type='validate',
-                                                 max_iteration=-1,
-                                                 cuda=cuda)
+            
+            if validate:
+                (va_acc, va_auc, va_ap) = evaluate(model=model,
+                                                  generator=generator,
+                                                  data_type='validate',
+                                                  max_iteration=-1,
+                                                  cuda=cuda)
 
             train_time = train_fin_time - train_bgn_time
             validate_time = time.time() - train_fin_time
 
+            # Print
             logging.info(
                 "iteration: {}, train time: {:.3f} s, validate time: {:.3f} s".format(
                     iteration, train_time, validate_time))
@@ -166,10 +168,11 @@ def train(args):
             logging.info(
                 "tr_acc: {:.3f}, tr_auc: {:.3f}, tr_ap: {:.3f}".format(
                     tr_acc, tr_auc, tr_ap))
-                    
-            logging.info(
-                "va_acc: {:.3f}, va_auc: {:.3f}, va_ap: {:.3f}".format(
-                    va_acc, va_auc, va_ap))
+            
+            if validate:
+                logging.info(
+                    "va_acc: {:.3f}, va_auc: {:.3f}, va_ap: {:.3f}".format(
+                        va_acc, va_auc, va_ap))
                     
             logging.info("")
 
