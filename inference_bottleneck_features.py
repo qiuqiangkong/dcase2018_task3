@@ -62,6 +62,7 @@ def forward_bottleneck(model, generate_func, cuda):
 def inference_bottleneck_features(args):
     
     workspace = args.workspace
+    holdout_fold = args.holdout_fold
     iteration = args.iteration
     cuda = args.cuda
     
@@ -78,11 +79,12 @@ def inference_bottleneck_features(args):
     hdf5_path = os.path.join(workspace, 'features', 'logmel', 'development.h5')
 
     model_path = os.path.join(workspace, 'models', filename, 
-                              'validation={}'.format(validate), 
+                              'holdout_fold={}'.format(holdout_fold), 
                               'md_{}_iters.tar'.format(iteration))
                               
     bottleneck_hdf5_path = os.path.join(
-        workspace, 'bottlecks', filename, 'bottleneck.h5')
+        workspace, 'bottlecks', filename, 
+        'holdout_fold={}'.format(holdout_fold), 'bottleneck.h5')
         
     create_folder(os.path.dirname(bottleneck_hdf5_path))
 
@@ -98,7 +100,7 @@ def inference_bottleneck_features(args):
     generator = DataGenerator(hdf5_path=hdf5_path,
                               batch_size=batch_size, 
                               validation_csv=None, 
-                              fold_for_validation=None)
+                              holdout_fold=None)
 
     generate_func = generator.generate_validate(data_type='train')
     
@@ -133,6 +135,7 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--workspace', type=str, required=True)
+    parser.add_argument('--holdout_fold', type=int, choices=[0, 1, 2])
     parser.add_argument('--iteration', type=int, required=True)
     parser.add_argument('--cuda', action='store_true', default=False)
     

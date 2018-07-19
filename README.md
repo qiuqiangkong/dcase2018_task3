@@ -75,26 +75,26 @@ Or run the commands in runme.sh line by line, including:
 The training looks like:
 
 <pre>
-root        : INFO     Load hdf5 time: 11.122668504714966 s
+root        : INFO     Load hdf5 time: 7.609001874923706 s
 root        : INFO     Training audios: 23789
 root        : INFO     Validation audios: 11901
-root        : INFO     iteration: 0, train time: 0.005 s, validate time: 4.852 s
-root        : INFO     tr_acc: 0.494, tr_auc: 0.439, tr_ap: 0.459
-root        : INFO     va_acc: 0.489, va_auc: 0.452, va_ap: 0.472
-root        : INFO
-root        : INFO     iteration: 500, train time: 13.480 s, validate time: 5.025 s
-root        : INFO     tr_acc: 0.769, tr_auc: 0.857, tr_ap: 0.872
-root        : INFO     va_acc: 0.757, va_auc: 0.844, va_ap: 0.860
+root        : INFO     iteration: 0, train time: 0.006 s, validate time: 5.167 s
+root        : INFO     tr_acc: 0.519, tr_auc: 0.537, tr_ap: 0.522
+root        : INFO     va_acc: 0.512, va_auc: 0.529, va_ap: 0.522
+root        : INFO     
+root        : INFO     iteration: 500, train time: 13.587 s, validate time: 5.075 s
+root        : INFO     tr_acc: 0.797, tr_auc: 0.888, tr_ap: 0.902
+root        : INFO     va_acc: 0.784, va_auc: 0.875, va_ap: 0.890
 ......
-root        : INFO     iteration: 3000, train time: 15.313 s, validate time: 5.195 s
-root        : INFO     tr_acc: 0.980, tr_auc: 0.999, tr_ap: 0.999
-root        : INFO     va_acc: 0.855, va_auc: 0.922, va_ap: 0.936
+root        : INFO     iteration: 5000, train time: 15.617 s, validate time: 5.202 s
+root        : INFO     tr_acc: 1.000, tr_auc: 1.000, tr_ap: 1.000
+root        : INFO     va_acc: 0.860, va_auc: 0.927, va_ap: 0.938
 ......
 </pre>
 
 ## Result
 
-We apply a convolutional neural network on the log mel spectrogram feature to solve this task. Training takes around 100 ms / iteration on a GTX Titan X GPU. The model is trained for 3000 iterations. The result is shown below. 
+We apply a convolutional neural network on the log mel spectrogram feature to solve this task. Training takes around 100 ms / iteration on a GTX Titan X GPU. The model is trained for 5000 iterations. The result is shown below. 
 
 In development, we split the data to 3 fold. we train the model on 2 folds and validate on another fold. We evaluate the validation error, 
  
@@ -102,7 +102,7 @@ In development, we split the data to 3 fold. we train the model on 2 folds and v
 
 | validation error | validation AUC | validation AP |
 |------------------|:--------------:|---------------|
-| 0.851            |      0.921     | 0.934         |
+| 0.861            |      0.927     | 0.938         |
 
 
 ## Summary
