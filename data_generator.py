@@ -9,11 +9,11 @@ from utilities import calculate_scalar, scale
 
 class DataGenerator(object):
     
-    def __init__(self, hdf5_path, batch_size, validation_csv=None, fold_for_validation=None, seed=1234):
+    def __init__(self, hdf5_path, batch_size, validation_csv=None, holdout_fold=None, seed=1234):
         
         self.random_state = np.random.RandomState(seed)
         self.batch_size = batch_size
-        self.fold_for_validation = fold_for_validation
+        self.holdout_fold = holdout_fold
 
         # Load data
         load_time = time.time()
@@ -35,7 +35,7 @@ class DataGenerator(object):
         # Get training & validation indexes
         (self.train_audio_indexes, self.valid_audio_indexes) = \
             self.get_train_validate_audio_indexes(validation_csv, 
-                                                  fold_for_validation)
+                                                  holdout_fold)
                                                   
         logging.info("Training audios: {}".format(len(self.train_audio_indexes)))
         logging.info("Validation audios: {}".format(len(self.valid_audio_indexes)))
@@ -60,7 +60,7 @@ class DataGenerator(object):
         return np.array(folds)
         
         
-    def get_train_validate_audio_indexes(self, validation_csv, fold_for_validation):
+    def get_train_validate_audio_indexes(self, validation_csv, holdout_fold):
         """Get indexes of training and validation data. 
         """
 
@@ -76,7 +76,7 @@ class DataGenerator(object):
             folds = self.get_folds_from_validation_csv(validation_csv)
             
             for n in range(audios_num):
-                if folds[n] == fold_for_validation:
+                if folds[n] == holdout_fold:
                     valid_audio_indexes.append(n)
                 else:
                     train_audio_indexes.append(n)

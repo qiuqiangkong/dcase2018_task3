@@ -12,10 +12,11 @@ python features.py logmel --dataset_dir=$DATASET_DIR --workspace=$WORKSPACE --da
 
 ############ Development ############
 # Train
-CUDA_VISIBLE_DEVICES=1 python main_pytorch.py train --workspace=$WORKSPACE --data_type=development --validate --cuda
+HOLDOUT_FOLD=0
+CUDA_VISIBLE_DEVICES=1 python main_pytorch.py train --workspace=$WORKSPACE --data_type=development --validate --holdout_fold=$HOLDOUT_FOLD --cuda
 
 # Inference validation
-CUDA_VISIBLE_DEVICES=1 python main_pytorch.py train --workspace=$WORKSPACE --data_type=development --validate --cuda
+CUDA_VISIBLE_DEVICES=1 python main_pytorch.py inference_validation --workspace=$WORKSPACE --holdout_fold=$HOLDOUT_FOLD --iteration=5000 --cuda
 
 ############ Full train ############
 # Train using all development data

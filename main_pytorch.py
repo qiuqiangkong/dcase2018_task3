@@ -90,12 +90,12 @@ def train(args):
     workspace = args.workspace
     data_type = args.data_type
     validate = args.validate
+    holdout_fold = args.holdout_fold
     mini_data = args.mini_data
     cuda = args.cuda
     filename = args.filename
     
     batch_size = 64
-    fold_for_validation = config.fold_for_validation
 
     # Paths
     if mini_data:
@@ -109,12 +109,14 @@ def train(args):
     if validate:
         validation_csv = os.path.join(workspace, 'validation.csv')
         
+        models_dir = os.path.join(workspace, 'models', filename, 
+                                'holdout_fold={}'.format(holdout_fold))
+        
     else:
         validation_csv = None
-        fold_for_validation = None
+        holdout_fold = None
 
-    models_dir = os.path.join(workspace, 'models', filename, 
-                              'validation={}'.format(validate))
+        models_dir = os.path.join(workspace, 'models', filename, 'full_train')
                               
     create_folder(models_dir)
 
@@ -127,7 +129,7 @@ def train(args):
     generator = DataGenerator(hdf5_path=hdf5_path,
                               batch_size=batch_size,
                               validation_csv=validation_csv, 
-                              fold_for_validation=fold_for_validation)
+                              holdout_fold=holdout_fold)
 
     # Optimizer
     optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999),
@@ -149,16 +151,17 @@ def train(args):
                                                  data_type='train',
                                                  max_iteration=-1,
                                                  cuda=cuda)
-
-            (va_acc, va_auc, va_ap) = evaluate(model=model,
-                                                 generator=generator,
-                                                 data_type='validate',
-                                                 max_iteration=-1,
-                                                 cuda=cuda)
+            if validate:
+                (va_acc, va_auc, va_ap) = evaluate(model=model,
+                                                    generator=generator,
+                                                    data_type='validate',
+                                                    max_iteration=-1,
+                                                    cuda=cuda)
 
             train_time = train_fin_time - train_bgn_time
             validate_time = time.time() - train_fin_time
 
+            # Print info
             logging.info(
                 "iteration: {}, train time: {:.3f} s, validate time: {:.3f} s".format(
                     iteration, train_time, validate_time))
@@ -166,10 +169,11 @@ def train(args):
             logging.info(
                 "tr_acc: {:.3f}, tr_auc: {:.3f}, tr_ap: {:.3f}".format(
                     tr_acc, tr_auc, tr_ap))
-                    
-            logging.info(
-                "va_acc: {:.3f}, va_auc: {:.3f}, va_ap: {:.3f}".format(
-                    va_acc, va_auc, va_ap))
+            
+            if validate:
+                logging.info(
+                    "va_acc: {:.3f}, va_auc: {:.3f}, va_ap: {:.3f}".format(
+                        va_acc, va_auc, va_ap))
                     
             logging.info("")
 
@@ -202,19 +206,28 @@ def train(args):
                 models_dir, 'md_{}_iters.tar'.format(iteration))
             torch.save(save_out_dict, save_out_path)
             logging.info("Model saved to {}".format(save_out_path))
+            
+        # Reduce learning rate
+        if iteration % 200 == 0:
+            for param_group in optimizer.param_groups:
+                param_group['lr'] *= 0.9
+                
+        # Stop learning
+        if iteration == 10000:
+            break
 
 
 def inference_validation(args):
 
     # Arugments & parameters
     workspace = args.workspace
+    holdout_fold = args.holdout_fold
     iteration = args.iteration
     filename = args.filename
     cuda = args.cuda
 
     validate = True
     batch_size = 64
-    fold_for_validation = config.fold_for_validation
 
     # Paths
     hdf5_path = os.path.join(workspace, 'features', 'logmel', 'development.h5')
@@ -223,7 +236,7 @@ def inference_validation(args):
 
 
     model_path = os.path.join(workspace, 'models', filename, 
-                              'validation={}'.format(validate), 
+                              'holdout_fold={}'.format(holdout_fold), 
                               'md_{}_iters.tar'.format(iteration))
 
     # Load model
@@ -238,7 +251,7 @@ def inference_validation(args):
     generator = DataGenerator(hdf5_path=hdf5_path,
                               batch_size=batch_size,
                               validation_csv=validation_csv, 
-                              fold_for_validation=fold_for_validation)
+                              holdout_fold=holdout_fold)
 
     generate_func = generator.generate_validate(data_type='validate')
 
@@ -276,8 +289,7 @@ def inference_testing_data(args):
     test_hdf5_path = os.path.join(workspace, 'features', 'logmel', 
                                   'test.h5')
                                  
-    model_path = os.path.join(workspace, 'models', filename, 
-                              'validation={}'.format(validate), 
+    model_path = os.path.join(workspace, 'models', filename, 'full_train', 
                               'md_{}_iters.tar'.format(iteration))
                               
     submission_path = os.path.join(workspace, 'submissions', filename, 
@@ -296,8 +308,8 @@ def inference_testing_data(args):
 
     # Data generator
     generator = TestDataGenerator(dev_hdf5_path=dev_hdf5_path,
-                                    test_hdf5_path=test_hdf5_path, 
-                                    batch_size=batch_size)
+                                  test_hdf5_path=test_hdf5_path, 
+                                  batch_size=batch_size)
 
     generate_func = generator.generate_test()
     
@@ -327,11 +339,13 @@ if __name__ == '__main__':
     parser_train.add_argument('--workspace', type=str)
     parser_train.add_argument('--data_type', type=str)
     parser_train.add_argument('--validate', action='store_true', default=False)
+    parser_train.add_argument('--holdout_fold', type=int, choices=[0, 1, 2])
     parser_train.add_argument('--mini_data', action='store_true', default=False)
     parser_train.add_argument('--cuda', action='store_true', default=False)
     
     parser_inference_validation = subparsers.add_parser('inference_validation')
     parser_inference_validation.add_argument('--workspace', type=str, required=True)
+    parser_inference_validation.add_argument('--holdout_fold', type=int, choices=[0, 1, 2])
     parser_inference_validation.add_argument('--iteration', type=int, required=True)
     parser_inference_validation.add_argument('--cuda', action='store_true', default=False)
     
