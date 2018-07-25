@@ -222,7 +222,7 @@ def train(args):
                 logging.info(
                     'va_acc: {:.3f}, va_auc: {:.3f}'.format(va_acc, va_auc))
                     
-            logging.info('')
+            logging.info('------------------------------------')
 
             train_bgn_time = time.time()
 

@@ -52,6 +52,7 @@ No. 11, 001d5212-6378-4a5d-aa3c-b1115d02ee79.wav
 **0. Prepare data**
 Unzip all development wavs to 'wav' folder, unzip all testing wavs to 'test_wav' folder. The data looks like:
 
+<pre>
 .
 ├── wav (35690 audios for development)
 │    └── ...
@@ -61,10 +62,13 @@ Unzip all development wavs to 'wav' folder, unzip all testing wavs to 'test_wav'
 ├── ff1010bird_metadata_2018.csv
 ├── warblrb10k_public_metadata_2018.csv
 └── dcase2018_task3_bird_examplesubmission.csv
+</pre>
 
 **1. (Optional) Install dependent packages.** If you are using conda, simply run:
 
-$ conda env create -f environment.yml
+$ BACKEND="pytorch"
+
+$ conda env create -f $BACKEND/environment.yml
 
 $ conda activate py3_dcase2018_task3
 
@@ -85,34 +89,40 @@ Or run the commands in runme.sh line by line, including:
 The training looks like:
 
 <pre>
-root        : INFO     Load hdf5 time: 7.609001874923706 s
-root        : INFO     Training audios: 23789
-root        : INFO     Validation audios: 11901
-root        : INFO     iteration: 0, train time: 0.006 s, validate time: 5.167 s
-root        : INFO     tr_acc: 0.519, tr_auc: 0.537, tr_ap: 0.522
-root        : INFO     va_acc: 0.512, va_auc: 0.529, va_ap: 0.522
-root        : INFO     
-root        : INFO     iteration: 500, train time: 13.587 s, validate time: 5.075 s
-root        : INFO     tr_acc: 0.797, tr_auc: 0.888, tr_ap: 0.902
-root        : INFO     va_acc: 0.784, va_auc: 0.875, va_ap: 0.890
+Load hdf5 time: 7.787177562713623 s
+Training audios: 15690
+Validation audios: 20000
+iteration: 0, train time: 0.005 s, validate time: 40.426 s
+tr_acc: 0.574, tr_auc: 0.691, 
+va_acc: 0.510, va_auc: 0.532
+------------------------------------
+iteration: 500, train time: 99.674 s, validate time: 41.741 s
+tr_acc: 0.896, tr_auc: 0.959, 
+va_acc: 0.551, va_auc: 0.746
+------------------------------------
 ......
-root        : INFO     iteration: 5000, train time: 15.617 s, validate time: 5.202 s
-root        : INFO     tr_acc: 1.000, tr_auc: 1.000, tr_ap: 1.000
-root        : INFO     va_acc: 0.860, va_auc: 0.927, va_ap: 0.938
+------------------------------------
+iteration: 1000, train time: 99.984 s, validate time: 42.196 s
+tr_acc: 0.914, tr_auc: 0.970, 
+va_acc: 0.596, va_auc: 0.735
+------------------------------------
 ......
 </pre>
 
 ## Result
 
-We apply a convolutional neural network on the log mel spectrogram feature to solve this task. Training takes around 100 ms / iteration on a GTX Titan X GPU. The model is trained for 5000 iterations. The result is shown below. 
+We apply a convolutional neural network on the log mel spectrogram feature to solve this task. Training takes around 200 ms / iteration on a GTX Titan X GPU. The model is trained for 5000 iterations. The result is shown below. 
 
-In development, we split the data to 3 fold. we train the model on 2 folds and validate on another fold. We evaluate the validation error, 
+In development, we split the data to 3 fold, each fold contains the audios from a dataset. The cross validation result is shown as below:
  
   
 
-| validation error | validation AUC | validation AP |
-|------------------|:--------------:|---------------|
-| 0.861            |      0.927     | 0.938         |
+| Dataset           | Validation AUC |
+|-------------------|----------------|
+| freefield1010     | 0.799          |
+| warblrb10k        | 0.782          |
+| BirdVoxDCASE-20K  | 0.882          |
+| **Average**       | **0.854**      |
 
 
 ## Summary
