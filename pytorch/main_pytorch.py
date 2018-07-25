@@ -183,11 +183,11 @@ def train(args):
     optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999),
                            eps=1e-08, weight_decay=0.)
 
-    iteration = 0
+    # iteration = 0
     train_bgn_time = time.time()
 
     # Train on mini-batch
-    for (batch_x, batch_y) in generator.generate_train():
+    for (iteration, (batch_x, batch_y)) in enumerate(generator.generate_train()):
 
         # Evaluate
         if iteration % 500 == 0:
@@ -226,22 +226,6 @@ def train(args):
 
             train_bgn_time = time.time()
 
-        # Move data to gpu
-        batch_x = move_data_to_gpu(batch_x, cuda)
-        batch_y = move_data_to_gpu(batch_y, cuda)
-
-        # Train
-        model.train()
-        output = model(batch_x)
-        loss = F.binary_cross_entropy(output, batch_y)
-        
-        # Backward
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        iteration += 1
-
         # Save model
         if iteration % 1000 == 0 and iteration > 0:
             
@@ -255,10 +239,23 @@ def train(args):
             logging.info('Model saved to {}'.format(save_out_path))
             
         # Reduce learning rate
-        if iteration % 20000 == 0:
+        if iteration % 100 == 0 and iteration > 0:
             for param_group in optimizer.param_groups:
                 param_group['lr'] *= 0.9
-                
+
+        # Train
+        batch_x = move_data_to_gpu(batch_x, cuda)
+        batch_y = move_data_to_gpu(batch_y, cuda)
+
+        model.train()
+        output = model(batch_x)
+        loss = F.binary_cross_entropy(output, batch_y)
+        
+        # Backward
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
         # Stop learning
         if iteration == 10000:
             break
@@ -384,13 +381,13 @@ if __name__ == '__main__':
     parser_train.add_argument('--workspace', type=str, required=True)
     parser_train.add_argument('--data_type', type=str, required=True)
     parser_train.add_argument('--validate', action='store_true', default=False)
-    parser_train.add_argument('--holdout_fold', type=int, choices=[0, 1, 2])
+    parser_train.add_argument('--holdout_fold', type=int, choices=[1, 2, 3])
     parser_train.add_argument('--mini_data', action='store_true', default=False)
     parser_train.add_argument('--cuda', action='store_true', default=False)
     
     parser_inference_validation = subparsers.add_parser('inference_validation')
     parser_inference_validation.add_argument('--workspace', type=str, required=True)
-    parser_inference_validation.add_argument('--holdout_fold', type=int, choices=[0, 1, 2])
+    parser_inference_validation.add_argument('--holdout_fold', type=int, choices=[1, 2, 3])
     parser_inference_validation.add_argument('--iteration', type=int, required=True)
     parser_inference_validation.add_argument('--cuda', action='store_true', default=False)
     
@@ -405,8 +402,8 @@ if __name__ == '__main__':
     
     # Create log
     logs_dir = os.path.join(args.workspace, 'logs', args.filename)
-    create_folder(os.path.dirname(logs_dir))
     logging = create_logging(logs_dir, filemode='w')
+    logging.info(args)
 
     if args.mode == 'train':
         train(args)

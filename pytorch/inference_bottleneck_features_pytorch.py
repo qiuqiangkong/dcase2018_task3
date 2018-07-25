@@ -1,62 +1,16 @@
 import os
+import sys
+sys.path.insert(1, os.path.join(sys.path[0], '../utils'))
 import numpy as np
 import argparse
 import h5py
 import time
-
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
-from torch.autograd import Variable
 
 from data_generator import DataGenerator
 from utilities import create_folder, get_filename
-from models import move_data_to_gpu, BaselineCnn
-
-
-def forward_bottleneck(model, generate_func, cuda):
-    """Forward data to a model. 
-    
-    model: object. 
-    generator_func: function. 
-    return_bottleneck: bool. 
-    cuda: bool. 
-    """
-
-    model.eval()
-
-    outputs = []
-    bottlenecks = []
-    targets = []
-    itemids = []
-    
-    iteration = 0
-
-    # Evaluate on mini-batch
-    for data in generate_func:
-        
-        (batch_x, batch_y, batch_itemids) = data
-
-        batch_x = move_data_to_gpu(batch_x, cuda)
-
-        # Predict
-        (batch_output, batch_bottleneck) = model(
-            batch_x, return_bottleneck=True)
-
-        outputs.append(batch_output.data.cpu().numpy())
-        bottlenecks.append(batch_bottleneck.data.cpu().numpy())
-        targets.append(batch_y)
-        itemids.append(batch_itemids)
-
-        iteration += 1
-
-    outputs = np.concatenate(outputs, axis=0)
-    bottlenecks = np.concatenate(bottlenecks, axis=0)
-    targets = np.concatenate(targets, axis=0)
-    itemids = np.concatenate(itemids, axis=0)
-    
-    return outputs, bottlenecks, targets, itemids
+from models_pytorch import move_data_to_gpu
+from main_pytorch import forward, Model
 
 
 def inference_bottleneck_features(args):
@@ -89,7 +43,7 @@ def inference_bottleneck_features(args):
     create_folder(os.path.dirname(bottleneck_hdf5_path))
 
     # Load model
-    model = BaselineCnn()
+    model = Model()
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint['state_dict'])
 
@@ -102,19 +56,20 @@ def inference_bottleneck_features(args):
                               validation_csv=None, 
                               holdout_fold=None)
 
-    generate_func = generator.generate_validate(data_type='train')
+    generate_func = generator.generate_validate(
+        data_type='train', shuffle=False, max_iteration=None)
     
     # Inference
-    (outputs, bottlenecks, targets, itemids) = forward_bottleneck(
-        model=model,
-        generate_func=generate_func, 
-        cuda=cuda)
-    '''
-    outputs: (N, 1)
-    bottlenecks: (N, feature_maps, time_steps) = (N, 128, 15)
-    targets: (N, 1)
-    itemids: (N,)
-    '''
+    dict = forward(model=model, 
+                   generate_func=generate_func, 
+                   cuda=cuda,
+                   return_target=True, 
+                   return_bottleneck=True)
+                              
+    outputs = dict['output']    # (audios_num, 1)
+    bottlenecks = dict['bottleneck']    # (audios_num, feature_maps, time_steps)
+    targets = dict['target']    # (audios_num, 1)
+    itemids = dict['itemid']    # (audios_num,)
 
     # Write bottleneck to hdf5 file
     with h5py.File(bottleneck_hdf5_path, 'w') as hf:
@@ -132,6 +87,10 @@ def inference_bottleneck_features(args):
 
 
 if __name__ == '__main__':
+    """Extract bottleneck features. 
+    
+    CUDA_VISIBLE_DEVICES=1 python pytorch/inference_bottleneck_features_pytorch.py --workspace=$WORKSPACE --holdout_fold=1 --iteration=1000 --cuda
+    """
 
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--workspace', type=str, required=True)

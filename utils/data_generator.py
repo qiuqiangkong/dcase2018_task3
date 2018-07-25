@@ -49,7 +49,7 @@ class DataGenerator(object):
             
         logging.info('Validation audios: {}'.format(
             len(self.valid_audio_indexes)))
-        
+
         # Calculate scalar
         (self.mean, self.std) = calculate_scalar(
             self.x[self.train_audio_indexes])
