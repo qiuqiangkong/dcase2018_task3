@@ -9,9 +9,21 @@ from utilities import calculate_scalar, scale
 
 class DataGenerator(object):
     
-    def __init__(self, hdf5_path, batch_size, validation_csv=None, holdout_fold=None, seed=1234):
+    def __init__(self, hdf5_path, batch_size, validation_csv=None, 
+                 holdout_fold=None, seed=1234):
+        """Data generator. 
+        
+        Args:
+          hdf5_path: str, path of hdf5 file
+          batch_size: int
+          validation_csv: None | str, path of validation csv, if None then all
+            data is used for training. 
+          holdout_fold: int, fold for validation
+          seed: int
+        """
         
         self.random_state = np.random.RandomState(seed)
+        self.validate_random_state = np.random.RandomState(0)
         self.batch_size = batch_size
         self.holdout_fold = holdout_fold
 
@@ -25,40 +37,23 @@ class DataGenerator(object):
         self.datasetids = [e.decode() for e in hf['datasetid'][:]]
         hf.close()
         
-        logging.info("Load hdf5 time: {} s".format(time.time() - load_time))
-        
-        
-        
-        # Calculate scalar
-        (self.mean, self.std) = calculate_scalar(self.x)
-
+        logging.info('Load hdf5 time: {} s'.format(time.time() - load_time))
+      
         # Get training & validation indexes
         (self.train_audio_indexes, self.valid_audio_indexes) = \
             self.get_train_validate_audio_indexes(validation_csv, 
                                                   holdout_fold)
                                                   
-        logging.info("Training audios: {}".format(len(self.train_audio_indexes)))
-        logging.info("Validation audios: {}".format(len(self.valid_audio_indexes)))
-
-        
-    def get_folds_from_validation_csv(self, validation_csv):
-        
-        df = pd.read_csv(validation_csv)
-        df = pd.DataFrame(df)
-        
-        _itemids = df['itemid'].tolist()
-        _folds = df['fold'].tolist()
-        
-        folds = []
-        
-        for itemid in self.itemids:
+        logging.info('Training audios: {}'.format(
+            len(self.train_audio_indexes)))
             
-            index = _itemids.index(itemid)
-            fold = _folds[index]
-            folds.append(fold)
+        logging.info('Validation audios: {}'.format(
+            len(self.valid_audio_indexes)))
         
-        return np.array(folds)
-        
+        # Calculate scalar
+        (self.mean, self.std) = calculate_scalar(
+            self.x[self.train_audio_indexes])
+
         
     def get_train_validate_audio_indexes(self, validation_csv, holdout_fold):
         """Get indexes of training and validation data. 
@@ -85,6 +80,26 @@ class DataGenerator(object):
             valid_audio_indexes = np.array(valid_audio_indexes)
             
         return train_audio_indexes, valid_audio_indexes
+        
+    def get_folds_from_validation_csv(self, validation_csv):
+        """Get fold info from validation csv
+        """
+        
+        df = pd.read_csv(validation_csv)
+        df = pd.DataFrame(df)
+        
+        _itemids = df['itemid'].tolist()
+        _folds = df['fold'].tolist()
+        
+        folds = []
+        
+        for itemid in self.itemids:
+            
+            index = _itemids.index(itemid)
+            fold = _folds[index]
+            folds.append(fold)
+        
+        return np.array(folds)
         
     def generate_train(self):
         
@@ -119,20 +134,30 @@ class DataGenerator(object):
             
             yield batch_x, batch_y
         
-    def generate_validate(self, data_type, max_iteration=None):
+    def generate_validate(self, data_type, shuffle, max_iteration=None):
+        """Generate mini-batch data for validation. 
+        
+        Args:
+          data_type: 'train' | 'validate'
+          shuffle: bool
+          max_iteration: int, maximum iteration for speed up validation
+        """
     
         batch_size = self.batch_size
         
         if data_type == 'train':
-            indexes = np.array(self.train_audio_indexes)
+            audio_indexes = np.array(self.train_audio_indexes)
             
         elif data_type == 'validate':
-            indexes = np.array(self.valid_audio_indexes)
+            audio_indexes = np.array(self.valid_audio_indexes)
             
         else:
-            raise Exception("Invalid data_type!")
+            raise Exception('Invalid data_type!')
+        
+        if shuffle:
+            self.validate_random_state.shuffle(audio_indexes)
             
-        audios_num = len(indexes)
+        audios_num = len(audio_indexes)
         
         iteration = 0
         pointer = 0
@@ -146,14 +171,14 @@ class DataGenerator(object):
                 break
             
             # Get batch indexes
-            batch_indexes = indexes[pointer : pointer + batch_size]
+            batch_audio_indexes = audio_indexes[pointer : pointer + batch_size]
             pointer += batch_size
             
             iteration += 1
   
-            batch_x = self.x[batch_indexes]
-            batch_y = self.y[batch_indexes]
-            batch_itemids = self.itemids[batch_indexes]
+            batch_x = self.x[batch_audio_indexes]
+            batch_y = self.y[batch_audio_indexes]
+            batch_itemids = self.itemids[batch_audio_indexes]
             
             # Transform data
             batch_x = self.transform(batch_x)
@@ -177,6 +202,13 @@ class DataGenerator(object):
 class TestDataGenerator(DataGenerator):
     
     def __init__(self, dev_hdf5_path, test_hdf5_path, batch_size):
+        """Test data generator. 
+        
+        Args:
+          dev_hdf5_path: str, path of development hdf5 file
+          test_hdf5_path, str, path of test hdf5_path
+          batch_size: int
+        """
         
         super(TestDataGenerator, self).__init__(
             hdf5_path=dev_hdf5_path, 
@@ -191,7 +223,7 @@ class TestDataGenerator(DataGenerator):
         
         hf.close()
         
-        logging.info("Loading data time: {:.3f} s".format(
+        logging.info('Loading data time: {:.3f} s'.format(
             time.time() - load_time))
         
     def generate_test(self):

@@ -98,11 +98,19 @@ def calculate_auc(target, predict):
     return metrics.roc_auc_score(target, predict, average='macro')
     
     
-def calculate_ap(target, predict):
-    return metrics.average_precision_score(target, predict, average='macro')
-    
-    
 def calculate_accuracy(target, predict):
     binary_predict = (np.sign(predict - 0.5) + 1.) / 2
     accuracy = np.sum(binary_predict == target) / len(target)
     return accuracy
+    
+    
+def write_testing_data_submission_csv(submission_path, itemids, outputs):
+    
+    f = open(submission_path, 'w')
+    
+    for n in range(len(itemids)):
+        f.write('{},{}\n'.format(itemids[n], outputs[n][0]))
+        
+    f.close()
+    
+    print('Write out submission file to {}'.format(submission_path))

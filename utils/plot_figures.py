@@ -96,6 +96,10 @@ def plot_logmel(args):
     
     
 if __name__ == '__main__':
+    """Plot logmel. 
+    
+    Example: python utils/plot_figures.py plot_logmel --dataset_dir=$DATASET_DIR --workspace=$WORKSPACE
+    """
     
     parser = argparse.ArgumentParser(description='')
     subparsers = parser.add_subparsers(dest='mode')

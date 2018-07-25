@@ -21,23 +21,17 @@ def create_validation(args):
     # Read dataframe
     dataframes = []
     
-    for filename in filenames:
+    for (n, filename) in enumerate(filenames):
         
         filepath = os.path.join(dataset_dir, filename)
         
         df = pd.read_csv(filepath)
         df = pd.DataFrame(df)
+        df['fold'] = n + 1
         
         dataframes.append(df)
         
     dataframes = pd.concat(dataframes)
-    
-    # Randomly assign a fold for each audio
-    samples_num = len(dataframes)
-    
-    fold_ary = rs.randint(low=0, high=3, size=samples_num)
-    
-    dataframes['fold'] = fold_ary
     
     # Write out to csv
     out_path = os.path.join(workspace, 'validation.csv')

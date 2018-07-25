@@ -50,7 +50,17 @@ No. 11, 001d5212-6378-4a5d-aa3c-b1115d02ee79.wav
 ## Run the code
 
 **0. Prepare data**
-Unzip all development wavs to 'wav' folder, unzip all testing wavs to 'test_wav' folder.
+Unzip all development wavs to 'wav' folder, unzip all testing wavs to 'test_wav' folder. The data looks like:
+
+.
+├── wav (35690 audios for development)
+│    └── ...
+├── test_wav (12620 audios for testing)
+│    └── ...
+├── BirdVoxDCASE20k_csvpublic.csv
+├── ff1010bird_metadata_2018.csv
+├── warblrb10k_public_metadata_2018.csv
+└── dcase2018_task3_bird_examplesubmission.csv
 
 **1. (Optional) Install dependent packages.** If you are using conda, simply run:
 

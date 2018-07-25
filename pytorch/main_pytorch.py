@@ -1,4 +1,6 @@
 import os
+import sys
+sys.path.insert(1, os.path.join(sys.path[0], '../utils'))
 import numpy as np
 import argparse
 import h5py
@@ -14,51 +16,83 @@ from torch.autograd import Variable
 
 from data_generator import DataGenerator, TestDataGenerator
 from utilities import (create_folder, get_filename, create_logging, 
-                       calculate_auc, calculate_ap, calculate_accuracy, 
-                       calculate_scalar, scale)
-from models import move_data_to_gpu, init_layer, init_bn, BaselineCnn
+                       calculate_auc, calculate_accuracy, 
+                       write_testing_data_submission_csv)
+from models_pytorch import move_data_to_gpu, init_layer, BaselineCnn, Vggish
 import config
 
 
+# Hyper-parameteres
+Model = Vggish
+batch_size = 64
+
+
 def evaluate(model, generator, data_type, max_iteration, cuda):
+    """Evaluate. 
+    
+    Args:
+      model: object
+      generator: object
+      data_type: string, 'train' | 'validate'
+      max_iteration: int, maximum iteration for validation
+      cuda: bool
+      
+    Returns:
+      accuracy: float
+      auc: float
+    """
 
-    generate_func = generator.generate_validate(data_type=data_type, max_iteration=max_iteration)
+    generate_func = generator.generate_validate(
+        data_type=data_type, shuffle=True,  max_iteration=max_iteration)
 
-    (outputs, targets, itemids) = forward(model=model,
-                                          generate_func=generate_func,
-                                          cuda=cuda,
-                                          has_target=True)
+    # Inference
+    dict = forward(model=model,
+                   generate_func=generate_func,
+                   cuda=cuda,
+                   return_target=True, 
+                   return_bottleneck=False)
+                   
+    outputs = dict['output']    # (audios_num, classes_num)
+    targets = dict['target']    # (audios_num, classes_num)
 
+    # Evaluate
     accuracy = calculate_accuracy(targets, outputs)
     auc = calculate_auc(targets, outputs)
-    ap = calculate_ap(targets, outputs)
 
-    return accuracy, auc, ap
+    return accuracy, auc
 
 
-def forward(model, generate_func, cuda, has_target):
+def forward(model, generate_func, cuda, return_target, return_bottleneck):
     """Forward data to a model. 
     
-    model: object. 
-    generator_func: function. 
-    return_bottleneck: bool. 
-    cuda: bool. 
+    Args:
+      model: object
+      generator_func: function
+      return_target: bool
+      return_bottleneck: bool
+      cuda: bool
+    
+    Returns:
+      dict, keys: 'audio_name', 'output'; optional keys: 'target', 'bottleneck'
     """
 
     model.eval()
 
     outputs = []
-    targets = []
     itemids = []
     
-    iteration = 0
-
+    if return_target:
+        targets = []
+        
+    if return_bottleneck:
+        bottlenecks = []
+    
     # Evaluate on mini-batch
     for data in generate_func:
         
-        if has_target:
+        if return_target:
             (batch_x, batch_y, batch_itemids) = data
-            targets.append(batch_y)
+            
             
         else:
             (batch_x, batch_itemids) = data
@@ -66,22 +100,38 @@ def forward(model, generate_func, cuda, has_target):
         batch_x = move_data_to_gpu(batch_x, cuda)
 
         # Predict
-        batch_output = model(batch_x, return_bottleneck=False)
+        if return_bottleneck:
+            (batch_output, batch_bottleneck) = model(
+                batch_x, return_bottleneck=True)
+            
+        else:
+            batch_output = model(batch_x, return_bottleneck=False)
             
         outputs.append(batch_output.data.cpu().numpy())
         itemids.append(batch_itemids)
 
-        iteration += 1
+        if return_target:
+            targets.append(batch_y)
+            
+        if return_bottleneck:
+            bottlenecks.append(batch_bottleneck.data.cpu().numpy())
+
+    dict = {}
 
     outputs = np.concatenate(outputs, axis=0)
-    itemids = np.concatenate(itemids, axis=0)
+    dict['output'] = outputs
     
-    if has_target:
+    itemids = np.concatenate(itemids, axis=0)
+    dict['itemid'] = itemids
+    
+    if return_target:
         targets = np.concatenate(targets, axis=0)
-        return outputs, targets, itemids
+        dict['target'] = targets
         
-    else:
-        return outputs, itemids
+    if return_bottleneck:
+        dict['bottleneck'] = bottlenecks
+        
+    return dict
 
 
 def train(args):
@@ -94,8 +144,6 @@ def train(args):
     mini_data = args.mini_data
     cuda = args.cuda
     filename = args.filename
-    
-    batch_size = 64
 
     # Paths
     if mini_data:
@@ -121,7 +169,7 @@ def train(args):
     create_folder(models_dir)
 
     # Model
-    model = BaselineCnn()
+    model = Model()
 
     if cuda:
         model.cuda()
@@ -146,37 +194,35 @@ def train(args):
 
             train_fin_time = time.time()
 
-            (tr_acc, tr_auc, tr_ap) = evaluate(model=model,
-                                                 generator=generator,
-                                                 data_type='train',
-                                                 max_iteration=-1,
-                                                 cuda=cuda)
+            (tr_acc, tr_auc) = evaluate(model=model,
+                                        generator=generator,
+                                        data_type='train',
+                                        max_iteration=-1,
+                                        cuda=cuda)
 
             if validate:
-                (va_acc, va_auc, va_ap) = evaluate(model=model,
-                                                    generator=generator,
-                                                    data_type='validate',
-                                                    max_iteration=-1,
-                                                    cuda=cuda)
+                (va_acc, va_auc) = evaluate(model=model,
+                                            generator=generator,
+                                            data_type='validate',
+                                            max_iteration=-1,
+                                            cuda=cuda)
 
             train_time = train_fin_time - train_bgn_time
             validate_time = time.time() - train_fin_time
 
             # Print info
             logging.info(
-                "iteration: {}, train time: {:.3f} s, validate time: {:.3f} s".format(
-                    iteration, train_time, validate_time))
+                'iteration: {}, train time: {:.3f} s, validate time: {:.3f} s'
+                    ''.format(iteration, train_time, validate_time))
                     
             logging.info(
-                "tr_acc: {:.3f}, tr_auc: {:.3f}, tr_ap: {:.3f}".format(
-                    tr_acc, tr_auc, tr_ap))
+                'tr_acc: {:.3f}, tr_auc: {:.3f}, '.format(tr_acc, tr_auc))
             
             if validate:
                 logging.info(
-                    "va_acc: {:.3f}, va_auc: {:.3f}, va_ap: {:.3f}".format(
-                        va_acc, va_auc, va_ap))
+                    'va_acc: {:.3f}, va_auc: {:.3f}'.format(va_acc, va_auc))
                     
-            logging.info("")
+            logging.info('')
 
             train_bgn_time = time.time()
 
@@ -188,7 +234,7 @@ def train(args):
         model.train()
         output = model(batch_x)
         loss = F.binary_cross_entropy(output, batch_y)
-
+        
         # Backward
         optimizer.zero_grad()
         loss.backward()
@@ -206,10 +252,10 @@ def train(args):
             save_out_path = os.path.join(
                 models_dir, 'md_{}_iters.tar'.format(iteration))
             torch.save(save_out_dict, save_out_path)
-            logging.info("Model saved to {}".format(save_out_path))
+            logging.info('Model saved to {}'.format(save_out_path))
             
         # Reduce learning rate
-        if iteration % 200 == 0:
+        if iteration % 20000 == 0:
             for param_group in optimizer.param_groups:
                 param_group['lr'] *= 0.9
                 
@@ -228,7 +274,6 @@ def inference_validation(args):
     cuda = args.cuda
 
     validate = True
-    batch_size = 64
 
     # Paths
     hdf5_path = os.path.join(workspace, 'features', 'logmel', 'development.h5')
@@ -241,7 +286,7 @@ def inference_validation(args):
                               'md_{}_iters.tar'.format(iteration))
 
     # Load model
-    model = BaselineCnn()
+    model = Model()
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint['state_dict'])
 
@@ -254,22 +299,25 @@ def inference_validation(args):
                               validation_csv=validation_csv, 
                               holdout_fold=holdout_fold)
 
-    generate_func = generator.generate_validate(data_type='validate')
+    generate_func = generator.generate_validate(
+        data_type='validate', shuffle=False, max_iteration=None)
 
     # Inference
-    (outputs, targets, audio_names) = forward(model=model,
-                                              generate_func=generate_func, 
-                                              cuda=cuda, 
-                                              has_target=True)
+    dict = forward(model=model,
+                   generate_func=generate_func, 
+                   cuda=cuda, 
+                   return_target=True, 
+                   return_bottleneck=False)
+                   
+    outputs = dict['output']
+    targets = dict['target']
+    itemids = dict['itemid']
 
     # Evaluate
     va_acc = calculate_accuracy(targets, outputs)
     va_auc = calculate_auc(targets, outputs)
-    va_ap = calculate_ap(targets, outputs)
-    
-    logging.info(
-        "va_acc: {:.3f}, va_auc: {:.3f}, va_ap: {:.3f}".format(
-            va_acc, va_auc, va_ap))
+
+    logging.info('va_acc: {:.3f}, va_auc: {:.3f}'.format(va_acc, va_auc))
             
             
 def inference_testing_data(args):
@@ -281,7 +329,6 @@ def inference_testing_data(args):
     cuda = args.cuda
 
     validate = True
-    batch_size = 64
 
     # Paths
     dev_hdf5_path = os.path.join(workspace, 'features', 'logmel', 
@@ -300,7 +347,7 @@ def inference_testing_data(args):
     create_folder(os.path.dirname(submission_path))
     
     # Load model
-    model = BaselineCnn()
+    model = Model()
     checkpoint = torch.load(model_path)
     model.load_state_dict(checkpoint['state_dict'])
 
@@ -315,30 +362,27 @@ def inference_testing_data(args):
     generate_func = generator.generate_test()
     
     # Inference
-    (outputs, itemids) = forward(model=model, 
-                                 generate_func=generate_func, 
-                                 cuda=cuda, 
-                                 has_target=False)
-                                 
-    # Write out submission file
-    f = open(submission_path, 'w')
+    dict = forward(model=model, 
+                   generate_func=generate_func, 
+                   cuda=cuda, 
+                   return_target=False, 
+                   return_bottleneck=False)
+                   
+    outputs = dict['output']
+    itemids = dict['itemid']
     
-    for n in range(len(itemids)):
-        f.write('{},{}\n'.format(itemids[n], outputs[n][0]))
-        
-    f.close()
+    # Write out submission file                             
+    write_testing_data_submission_csv(submission_path, itemids, outputs)
     
-    print('Write out submission file to {}'.format(submission_path))
-
-
+    
 if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='Example of parser. ')
     subparsers = parser.add_subparsers(dest='mode')
 
     parser_train = subparsers.add_parser('train')
-    parser_train.add_argument('--workspace', type=str)
-    parser_train.add_argument('--data_type', type=str)
+    parser_train.add_argument('--workspace', type=str, required=True)
+    parser_train.add_argument('--data_type', type=str, required=True)
     parser_train.add_argument('--validate', action='store_true', default=False)
     parser_train.add_argument('--holdout_fold', type=int, choices=[0, 1, 2])
     parser_train.add_argument('--mini_data', action='store_true', default=False)

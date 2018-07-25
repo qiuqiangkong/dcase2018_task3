@@ -1,5 +1,7 @@
-import numpy as np
 import os
+import sys
+sys.path.insert(1, os.path.join(sys.path[0], 'utils'))
+import numpy as np
 import pandas as pd
 import argparse
 import h5py
@@ -23,7 +25,7 @@ class LogMelExtractor():
         self.melW = librosa.filters.mel(sr=sample_rate, 
                                         n_fft=window_size, 
                                         n_mels=mel_bins, 
-                                        fmin=100., 
+                                        fmin=50., 
                                         fmax=sample_rate // 2).T
     
     def transform(self, audio):
