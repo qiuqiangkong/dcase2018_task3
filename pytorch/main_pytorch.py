@@ -129,6 +129,7 @@ def forward(model, generate_func, cuda, return_target, return_bottleneck):
         dict['target'] = targets
         
     if return_bottleneck:
+        bottlenecks = np.concatenate(bottlenecks, axis=0)
         dict['bottleneck'] = bottlenecks
         
     return dict
