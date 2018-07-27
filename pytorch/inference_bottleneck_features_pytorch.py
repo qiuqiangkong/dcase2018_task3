@@ -68,7 +68,7 @@ def inference_development_data_bottleneck_features(args):
     
     # Write bottleneck features
     write_bottleneck_features_to_hdf5(
-        model, generate_func, bottleneck_hdf5_path, cuda, return_target=False)
+        model, generate_func, bottleneck_hdf5_path, cuda, return_target=True)
 
 
 def inference_testing_data_bottleneck_features(args):
