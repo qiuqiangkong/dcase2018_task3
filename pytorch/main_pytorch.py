@@ -139,7 +139,6 @@ def train(args):
     
     # Arugments & parameters
     workspace = args.workspace
-    data_type = args.data_type
     validate = args.validate
     holdout_fold = args.holdout_fold
     mini_data = args.mini_data
@@ -159,7 +158,7 @@ def train(args):
         validation_csv = os.path.join(workspace, 'validation.csv')
         
         models_dir = os.path.join(workspace, 'models', filename, 
-                                'holdout_fold={}'.format(holdout_fold))
+                                'holdout_fold{}'.format(holdout_fold))
         
     else:
         validation_csv = None
@@ -280,7 +279,7 @@ def inference_validation(args):
 
 
     model_path = os.path.join(workspace, 'models', filename, 
-                              'holdout_fold={}'.format(holdout_fold), 
+                              'holdout_fold{}'.format(holdout_fold), 
                               'md_{}_iters.tar'.format(iteration))
 
     # Load model
@@ -380,7 +379,6 @@ if __name__ == '__main__':
 
     parser_train = subparsers.add_parser('train')
     parser_train.add_argument('--workspace', type=str, required=True)
-    parser_train.add_argument('--data_type', type=str, required=True)
     parser_train.add_argument('--validate', action='store_true', default=False)
     parser_train.add_argument('--holdout_fold', type=int, choices=[1, 2, 3])
     parser_train.add_argument('--mini_data', action='store_true', default=False)

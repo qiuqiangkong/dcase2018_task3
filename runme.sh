@@ -17,14 +17,14 @@ python utils/features.py logmel --dataset_dir=$DATASET_DIR --workspace=$WORKSPAC
 
 ############ Development ############
 # Train
-CUDA_VISIBLE_DEVICES=$GPU_ID python $BACKEND/main_pytorch.py train --workspace=$WORKSPACE --data_type=development --validate --holdout_fold=$HOLDOUT_FOLD --cuda
+CUDA_VISIBLE_DEVICES=$GPU_ID python $BACKEND/main_pytorch.py train --workspace=$WORKSPACE --validate --holdout_fold=$HOLDOUT_FOLD --cuda
 
 # Inference validation
 CUDA_VISIBLE_DEVICES=$GPU_ID python $BACKEND/main_pytorch.py inference_validation --workspace=$WORKSPACE --holdout_fold=$HOLDOUT_FOLD --iteration=5000 --cuda
 
 ############ Full train ############
 # Train using all development data
-CUDA_VISIBLE_DEVICES=$GPU_ID python $BACKEND/main_pytorch.py train --workspace=$WORKSPACE --data_type=development --cuda
+CUDA_VISIBLE_DEVICES=$GPU_ID python $BACKEND/main_pytorch.py train --workspace=$WORKSPACE --cuda
 
 # Predict on test data
 CUDA_VISIBLE_DEVICES=$GPU_ID python $BACKEND/main_pytorch.py inference_testing_data --workspace=$WORKSPACE --iteration=5000 --cuda

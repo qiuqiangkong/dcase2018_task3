@@ -72,6 +72,8 @@ $ conda env create -f $BACKEND/environment.yml
 
 $ conda activate py3_dcase2018_task3
 
+<span style="color:red">(We developed this system with python 3. If you are using pytorch as backend then pytorch 0.4.0 is required.)</span>
+
 **2. Then simply run:**
 
 $ ./runme.sh
@@ -127,6 +129,9 @@ In development, we split the data to 3 fold, each fold contains the audios from 
 
 ## Summary
 This codebase provides a convolutional neural network (CNN) for DCASE 2018 challenge Task 3. 
+
+## FAQ
+If you met running out of GPU memory error, then try reduce batch_size. 
 
 ### External link
 
