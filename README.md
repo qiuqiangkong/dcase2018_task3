@@ -130,6 +130,9 @@ In development, we split the data to 3 fold, each fold contains the audios from 
 ## Summary
 This codebase provides a convolutional neural network (CNN) for DCASE 2018 challenge Task 3. 
 
+## Cite
+"Kong, Qiuqiang, Turab Iqbal, Yong Xu, Wenwu Wang, and Mark D. Plumbley. "DCASE 2018 Challenge baseline with convolutional neural networks." arXiv preprint arXiv:1808.00773 (2018)."
+
 ## FAQ
 If you met running out of GPU memory error, then try reduce batch_size. 
 
